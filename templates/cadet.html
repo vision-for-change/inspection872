@@ -1,0 +1,141 @@
+{% extends 'base.html' %}
+{% block title %}{{ cadet.rank }} {{ cadet.name }} — 872 Squadron{% endblock %}
+{% block extra_head %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <a href="{{ url_for('flight', flight_id=cadet.fid) }}" class="breadcrumb">← {{ cadet.flight_name }}</a>
+    <h2 class="page-title">{{ cadet.rank }} {{ cadet.name }}</h2>
+    <span class="page-sub">{{ cadet.flight_name }} Flight</span>
+  </div>
+  <a href="{{ url_for('inspect_cadet', cadet_id=cadet.id) }}" class="btn-primary">New Inspection</a>
+</div>
+
+<div class="stats-row">
+  <div class="stat-card">
+    <div class="stat-label">Current Score</div>
+    <div class="stat-value {% if current_score %}{% if current_score >= 80 %}score-high{% elif current_score >= 60 %}score-mid{% else %}score-low{% endif %}{% endif %}">
+      {{ current_score if current_score else '—' }}{% if current_score %}%{% endif %}
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Inspections</div>
+    <div class="stat-value">{{ history | length }}</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Rank</div>
+    <div class="stat-value stat-sm">{{ cadet.rank }}</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Flight</div>
+    <div class="stat-value stat-sm">{{ cadet.flight_name }}</div>
+  </div>
+</div>
+
+<div class="two-col">
+  <!-- History Chart -->
+  <section class="section">
+    <h3 class="section-title">Score History</h3>
+    {% if history %}
+    <div class="chart-wrap">
+      <canvas id="historyChart"></canvas>
+    </div>
+    {% else %}
+    <p class="empty-state">No inspections recorded yet.</p>
+    {% endif %}
+  </section>
+
+  <!-- Category Breakdown -->
+  <section class="section">
+    <h3 class="section-title">Latest Breakdown</h3>
+    {% if cat_scores %}
+    <div class="chart-wrap">
+      <canvas id="catChart"></canvas>
+    </div>
+    {% else %}
+    <p class="empty-state">No inspections recorded yet.</p>
+    {% endif %}
+  </section>
+</div>
+
+<!-- Suggestions -->
+{% if suggestions %}
+<section class="section">
+  <h3 class="section-title">⚠️ Areas for Improvement</h3>
+  <div class="suggestions-grid">
+    {% for s in suggestions %}
+    <div class="suggestion-card">
+      <span class="suggestion-cat">{{ s.category }}</span>
+      <span class="suggestion-score score-low">{{ s.score }}/5</span>
+      <p class="suggestion-tip">
+        {% if s.category == 'BOOTS' %}Ensure boots are polished to a mirror shine. Use parade gloss and buff thoroughly.
+        {% elif s.category == 'TUNIC' %}Check for lint, loose threads, and ensure proper fit. Press with care around badges.
+        {% elif s.category == 'HEADDRESS' %}Cap must sit level, be clean, and badge centered. Check cap badge alignment.
+        {% elif s.category == 'SHIRT' %}Iron thoroughly — collar must be crisp. Ensure no wrinkles at the front.
+        {% elif s.category == 'PANTS' %}Press crease sharply. Hem should be at the correct height above boot.
+        {% elif s.category == 'ACCESSORIES' %}Review belt buckle shine, name tag placement, and sock color compliance.
+        {% else %}Review standards and ensure attention to detail for this category.
+        {% endif %}
+      </p>
+    </div>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
+<script>
+const history = {{ history | tojson }};
+const catScores = {{ cat_scores | tojson }};
+const cats = {{ categories | tojson }};
+
+if (history.length > 0) {
+  new Chart(document.getElementById('historyChart'), {
+    type: 'line',
+    data: {
+      labels: history.map(h => h.date),
+      datasets: [{
+        label: 'Score %',
+        data: history.map(h => h.score),
+        borderColor: '#D4AF37',
+        backgroundColor: 'rgba(212,175,55,0.15)',
+        borderWidth: 2.5,
+        pointBackgroundColor: '#D4AF37',
+        tension: 0.3,
+        fill: true,
+      }]
+    },
+    options: {
+      responsive: true,
+      scales: { y: { min: 0, max: 100, grid: { color: 'rgba(128,128,128,0.1)' } }, x: { grid: { display: false } } },
+      plugins: { legend: { display: false } }
+    }
+  });
+}
+
+if (Object.keys(catScores).length > 0) {
+  const catData = cats.map(c => catScores[c] ? (catScores[c].excused ? null : catScores[c].score) : null);
+  new Chart(document.getElementById('catChart'), {
+    type: 'radar',
+    data: {
+      labels: cats,
+      datasets: [{
+        label: 'Score',
+        data: catData,
+        borderColor: '#0047AB',
+        backgroundColor: 'rgba(0,71,171,0.2)',
+        pointBackgroundColor: '#D4AF37',
+        borderWidth: 2,
+      }]
+    },
+    options: {
+      responsive: true,
+      scales: { r: { min: 0, max: 5, ticks: { stepSize: 1 }, grid: { color: 'rgba(128,128,128,0.15)' } } },
+      plugins: { legend: { display: false } }
+    }
+  });
+}
+</script>
+{% endblock %}

@@ -1,0 +1,117 @@
+{% extends 'base.html' %}
+{% block title %}Weekly History{% endblock %}
+{% block extra_head %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h2 class="page-title">Weekly Flight History</h2>
+  <span class="page-sub">{{ week_label }} (current week)</span>
+</div>
+
+<!-- Flight improvement cards -->
+<section class="section">
+  <h3 class="section-title">📈 Flight Trends — This Week vs Last Week</h3>
+  <div class="flights-grid">
+    {% for ft in flight_trends %}
+    <a href="{{ url_for('flight', flight_id=ft.id) }}" class="flight-card">
+      <div class="flight-card-header">
+        <span class="flight-name">{{ ft.name }}</span>
+        {% if ft.trend is not none %}
+          <span class="trend-badge {% if ft.trend > 0 %}trend-up{% elif ft.trend < 0 %}trend-down{% else %}trend-flat{% endif %}">
+            {% if ft.trend > 0 %}+{% endif %}{{ ft.trend }}%
+          </span>
+        {% endif %}
+      </div>
+      <div class="flight-score {% if ft.current %}{% if ft.current >= 80 %}score-high{% elif ft.current >= 60 %}score-mid{% else %}score-low{% endif %}{% endif %}">
+        {% if ft.current %}{{ ft.current }}%{% else %}—{% endif %}
+      </div>
+      <div class="flight-card-footer" style="color:var(--text-muted);font-size:11px">
+        Last week: {% if ft.previous %}{{ ft.previous }}%{% else %}—{% endif %}
+      </div>
+    </a>
+    {% endfor %}
+  </div>
+</section>
+
+<!-- All-time weekly chart -->
+{% if all_weeks %}
+<section class="section">
+  <h3 class="section-title">Flight Performance Over Time</h3>
+  <div class="chart-wrap" style="height:320px">
+    <canvas id="weeklyChart"></canvas>
+  </div>
+</section>
+
+<!-- Weekly table -->
+<section class="section">
+  <h3 class="section-title">Weekly Scores by Flight</h3>
+  <div style="overflow-x:auto">
+    <table class="rankings-table">
+      <thead>
+        <tr>
+          <th>Flight</th>
+          {% for w in all_weeks %}
+          <th>{{ week_labels[w] }}</th>
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in matrix %}
+        <tr>
+          <td><a href="{{ url_for('flight', flight_id=row.id) }}" class="cadet-link">{{ row.name }}</a></td>
+          {% for wd in row.weeks %}
+          <td>
+            {% if wd.avg is not none %}
+            <span class="score-pill {% if wd.avg >= 80 %}score-high{% elif wd.avg >= 60 %}score-mid{% else %}score-low{% endif %}">
+              {{ wd.avg }}%
+            </span>
+            {% else %}—{% endif %}
+          </td>
+          {% endfor %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<script>
+const weeks = {{ all_weeks | tojson }};
+const weekLabels = {{ week_labels | tojson }};
+const matrix = {{ matrix | tojson }};
+const colors = ['#0047AB','#D4AF37','#1a7a4a','#7B2D8B','#C0392B','#0D6E8A','#E67E22','#2C3E50','#16A085'];
+
+new Chart(document.getElementById('weeklyChart'), {
+  type: 'line',
+  data: {
+    labels: [...weeks].reverse().map(w => weekLabels[w]),
+    datasets: matrix.map((row, i) => ({
+      label: row.name,
+      data: [...row.weeks].reverse().map(w => w.avg),
+      borderColor: colors[i % colors.length],
+      backgroundColor: colors[i % colors.length] + '20',
+      borderWidth: 2.5,
+      pointRadius: 4,
+      tension: 0.3,
+      spanGaps: true,
+    }))
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    scales: {
+      y: { min: 0, max: 100, grid: { color: 'rgba(128,128,128,0.08)' }, ticks: { callback: v => v + '%' } },
+      x: { grid: { display: false } }
+    },
+    plugins: {
+      legend: { position: 'bottom', labels: { boxWidth: 12, padding: 16, font: { size: 11 } } },
+      tooltip: { callbacks: { label: ctx => `${ctx.dataset.label}: ${ctx.raw !== null ? ctx.raw + '%' : 'No data'}` } }
+    }
+  }
+});
+</script>
+{% else %}
+<p class="empty-state" style="padding:40px;text-align:center">No inspection data yet. Run your first inspection to see weekly history.</p>
+{% endif %}
+{% endblock %}
