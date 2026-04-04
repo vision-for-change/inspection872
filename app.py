@@ -490,6 +490,22 @@ def export_csv():
     return Response(output.getvalue(), mimetype='text/csv',
                     headers={'Content-Disposition': f'attachment; filename=squadron_{datetime.now().strftime("%Y%m%d")}.csv'})
 
+@app.route('/clear-week', methods=['POST'])
+@login_required
+def clear_week():
+    password = request.json.get('password')
+    if password != 'admin872':  # change this to whatever you want
+        return jsonify({'success': False, 'error': 'Wrong admin password'})
+    week = get_week_start()
+    db = get_db()
+    inspections = db.execute('SELECT id FROM inspections WHERE week_start=?', (week,)).fetchall()
+    for insp in inspections:
+        db.execute('DELETE FROM scores WHERE inspection_id=?', (insp['id'],))
+    db.execute('DELETE FROM inspections WHERE week_start=?', (week,))
+    db.commit()
+    db.close()
+    return jsonify({'success': True})
+    
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
