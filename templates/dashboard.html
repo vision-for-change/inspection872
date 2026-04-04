@@ -81,4 +81,40 @@
 <script>
   document.getElementById('currentDate').textContent = new Date().toLocaleDateString('en-CA', {weekday:'long', year:'numeric', month:'long', day:'numeric'});
 </script>
+
+<section class="section" style="border:1.5px solid rgba(192,57,43,0.3);margin-top:32px">
+  <h3 class="section-title" style="color:#c0392b">⚠️ Admin — Clear This Week</h3>
+  <p style="font-size:13px;color:var(--text-muted);margin-bottom:14px">
+    Deletes ALL inspection data for the current week across all flights. Cannot be undone.
+  </p>
+  <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+    <input type="password" id="adminPwd" placeholder="Admin password" class="form-input" style="width:200px">
+    <button onclick="clearWeek()" class="btn-primary" style="background:#c0392b">Delete This Week's Data</button>
+  </div>
+  <div id="clearMsg" style="margin-top:10px;font-size:13px;display:none"></div>
+</section>
+
+<script>
+async function clearWeek() {
+  const pwd = document.getElementById('adminPwd').value;
+  if (!pwd) { alert('Enter admin password'); return; }
+  if (!confirm('Are you sure? This deletes ALL inspection data for this week and cannot be undone.')) return;
+  const res = await fetch('/clear-week', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({password: pwd})
+  });
+  const data = await res.json();
+  const msg = document.getElementById('clearMsg');
+  msg.style.display = 'block';
+  if (data.success) {
+    msg.style.color = '#1a7a4a';
+    msg.textContent = '✓ This week\'s data has been cleared. Page will reload...';
+    setTimeout(() => location.reload(), 2000);
+  } else {
+    msg.style.color = '#c0392b';
+    msg.textContent = '✗ ' + data.error;
+  }
+}
+</script>
 {% endblock %}
